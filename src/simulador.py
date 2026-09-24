@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Andamento 1: simula a MT original e registra o histórico dos passos."""
+"""Simulador de Máquina de Turing Reversível de 3 Fitas (3 Estágios)."""
 
 import re
 import sys
+from typing import List, Dict, Tuple, Any
 
 
 BLANK = "B"
@@ -54,13 +55,16 @@ def main():
         print(erro, file=sys.stderr)
         return 1
 
+    # Inicialização da Fita 1 (Input/Working)
     fita = {posicao: simbolo for posicao, simbolo in enumerate(entrada)}
     historico = []
     estado = 1
     cabeca = 0
     passo = 0
 
-    print("FASE 1 — simulacao da MT original")
+    print("=" * 70)
+    print("FASE 1 — Simulacao Forward da MT Original (Fita 1 e Histórico)")
+    print("=" * 70)
     print(f"Entrada: {entrada or '(vazia)'}")
     print("Passos:")
 
@@ -85,8 +89,7 @@ def main():
 
         origem, simbolo_lido, destino, escrito, movimento = escolhida
 
-        # Este registro contém exatamente o que será necessário para desfazer
-        # o passo na fase de retrace implementada posteriormente.
+        # Registro para histórico do Retrace
         registro = {
             "passo": passo + 1,
             "transicao": indice_transicao,
@@ -110,11 +113,70 @@ def main():
         print(f"  {registro['passo']:>3}: T{indice_transicao}: "
               f"q{origem}, '{lido}' -> '{escrito}', {movimento}, q{destino}")
 
-    print("\nMT aceita.")
+    print("\nFase 1 Concluída com Sucesso!")
     print(f"Estado final: {estado}")
-    print(f"Fita de trabalho: {texto_da_fita(fita)}")
-    print(f"Passos registrados no historico: {len(historico)}")
-    print("\nO retrace ainda sera implementado na proxima etapa.")
+    print(f"Conteudo Fita 1: {texto_da_fita(fita)}")
+    print(f"Passos no historico: {len(historico)}")
+
+    # =========================================================================
+    # FASE 2 — Cópia do Resultado para a Fita 3 (Output Tape)
+    # =========================================================================
+    print("\n" + "=" * 70)
+    print("FASE 2 — Copia da Saida (Fita 1 -> Fita 3)")
+    print("=" * 70)
+
+    fita_output = {}
+    posicoes_fita1 = sorted(p for p, s in fita.items() if s != BLANK)
+
+    for i, pos in enumerate(posicoes_fita1):
+        simbolo = fita[pos]
+        fita_output[i] = simbolo
+        print(f"  Copiando simbolo '{simbolo}' da Fita 1[{pos}] para Fita 3[{i}]")
+
+    print(f"\nFase 2 Concluida!")
+    print(f"Conteudo Fita 3 (Output): {texto_da_fita(fita_output)}")
+
+    # =========================================================================
+    # FASE 3 — Retrace / Reversão das Operações
+    # =========================================================================
+    print("\n" + "=" * 70)
+    print("FASE 3 — Retrace (Desfazendo passos para restaurar estado inicial)")
+    print("=" * 70)
+
+    pas_retrace = 0
+    # Percorre o histórico na ordem inversa
+    for registro in reversed(historico):
+        pas_retrace += 1
+        
+        # Inverte o movimento realizado
+        mov = registro["movimento"]
+        if mov == "L":
+            cabeca += 1
+        elif mov == "R":
+            cabeca -= 1
+
+        # Restaura estado e conteúdo da Fita 1
+        estado = registro["estado_anterior"]
+        fita[registro["cabeca_anterior"]] = registro["simbolo_anterior"]
+
+        print(f"  Desfazendo passo {registro['passo']:>3}: Voltou para q{estado}, "
+              f"Restaurou '{registro['simbolo_anterior']}' em Fita 1[{registro['cabeca_anterior']}]")
+
+    # Limpa o histórico após o Retrace
+    historico.clear()
+
+    # =========================================================================
+    # RESULTADO FINAL APÓS OS 3 ESTÁGIOS
+    # =========================================================================
+    print("\n" + "=" * 70)
+    print("RESULTADO FINAL DA SIMULACAO REVERSIVEL")
+    print("=" * 70)
+    print(f"Estado final: q{estado}")
+    print(f"Fita 1 (Input Reconstruido): {texto_da_fita(fita)}")
+    print(f"Fita 2 (History Limpo):       {texto_da_fita({})}")
+    print(f"Fita 3 (Output Copiado):     {texto_da_fita(fita_output)}")
+    print("=" * 70)
+
     return 0
 
 
