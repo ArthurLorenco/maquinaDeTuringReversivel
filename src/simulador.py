@@ -44,56 +44,97 @@ def texto_da_fita(fita):
     return "".join(fita[posicao] for posicao in usadas)
 
 
-def fase1_simulacao(transicoes, entrada, quantidade_estados):
+def construir_quadruplas(transicoes, quantidade_estados):
+    # Bennett quebra toda quintupla (leitura+escrita+deslocamento no mesmo passo)
+    # em 2 quadruplas: uma so de leitura/escrita, outra so de deslocamento,
+    # ligadas por um estado intermediario novo (exclusivo dessa transicao).
+    quadruplas = []
+
+    print("Quintuplas convertidas em quadruplas:")
+    for indice, (origem, lido, destino, escrito, movimento) in enumerate(transicoes, start=1):
+        intermediario = quantidade_estados + indice
+
+        quadruplas.append({
+            "tipo": "RW",
+            "indice": indice,
+            "estado": origem,
+            "lido": lido,
+            "escrito": escrito,
+            "proximo_estado": intermediario,
+        })
+        quadruplas.append({
+            "tipo": "MOVE",
+            "indice": indice,
+            "estado": intermediario,
+            "movimento": movimento,
+            "proximo_estado": destino,
+        })
+
+        print(f"  T{indice}: (q{origem},'{lido}')=(q{destino},'{escrito}',{movimento})"
+              f"  ->  (q{origem},'{lido}')=('{escrito}',q{intermediario})"
+              f"  +  (q{intermediario},/)=({movimento},q{destino})")
+
+    return quadruplas
+
+
+def fase1_simulacao(quadruplas, entrada, quantidade_estados):
+    leitura_escrita = {(q["estado"], q["lido"]): q for q in quadruplas if q["tipo"] == "RW"}
+    deslocamento = {q["estado"]: q for q in quadruplas if q["tipo"] == "MOVE"}
+
     fita = {posicao: simbolo for posicao, simbolo in enumerate(entrada)}
     historico = []
     estado = 1
     cabeca = 0
     passo = 0
 
-    print(f"Fase 1: simulacao original (entrada: {entrada or '(vazia)'})")
+    print(f"\nFase 1: simulacao com quadruplas (entrada: {entrada or '(vazia)'})")
 
     while estado != quantidade_estados:
-        lido = simbolo_da_fita(fita, cabeca)
-        escolhida = None
-        indice_transicao = None
-
-        for indice, transicao in enumerate(transicoes, start=1):
-            origem, simbolo_lido, destino, escrito, movimento = transicao
-            if origem == estado and simbolo_lido == lido:
-                escolhida = transicao
-                indice_transicao = indice
-                break
-
-        if escolhida is None:
-            print(f"Erro: nao ha transicao para estado {estado} e simbolo '{lido}'.", file=sys.stderr)
-            return None
         if passo >= STEP_LIMIT:
             print(f"Erro: limite de {STEP_LIMIT} passos excedido.", file=sys.stderr)
             return None
 
-        origem, _, destino, escrito, movimento = escolhida
+        if estado in deslocamento:
+            quad = deslocamento[estado]
+            registro = {
+                "passo": passo + 1,
+                "tipo": "MOVE",
+                "estado_anterior": estado,
+                "movimento": quad["movimento"],
+            }
+            historico.append(registro)
 
-        # Registro para histórico do Retrace
-        registro = {
-            "passo": passo + 1,
-            "estado_anterior": estado,
-            "cabeca_anterior": cabeca,
-            "simbolo_anterior": lido,
-            "movimento": movimento,
-        }
-        historico.append(registro)
+            if quad["movimento"] == "L":
+                cabeca -= 1
+            elif quad["movimento"] == "R":
+                cabeca += 1
+            estado = quad["proximo_estado"]
 
-        fita[cabeca] = escrito
-        if movimento == "L":
-            cabeca -= 1
-        elif movimento == "R":
-            cabeca += 1
-        estado = destino
+            print(f"  {registro['passo']:>3}: T{quad['indice']} deslocamento: "
+                  f"q{registro['estado_anterior']}, {quad['movimento']}, q{estado}")
+        else:
+            lido = simbolo_da_fita(fita, cabeca)
+            quad = leitura_escrita.get((estado, lido))
+            if quad is None:
+                print(f"Erro: nao ha transicao para estado {estado} e simbolo '{lido}'.", file=sys.stderr)
+                return None
+
+            registro = {
+                "passo": passo + 1,
+                "tipo": "RW",
+                "estado_anterior": estado,
+                "cabeca": cabeca,
+                "simbolo_anterior": lido,
+            }
+            historico.append(registro)
+
+            fita[cabeca] = quad["escrito"]
+            estado = quad["proximo_estado"]
+
+            print(f"  {registro['passo']:>3}: T{quad['indice']} leitura/escrita: "
+                  f"q{registro['estado_anterior']}, '{lido}' -> '{quad['escrito']}', q{estado}")
+
         passo += 1
-
-        print(f"  {registro['passo']:>3}: T{indice_transicao}: "
-              f"q{origem}, '{lido}' -> '{escrito}', {movimento}, q{destino}")
 
     print(f"Fita 1: {texto_da_fita(fita)}")
     print(f"Passos no historico: {len(historico)}")
@@ -102,6 +143,8 @@ def fase1_simulacao(transicoes, entrada, quantidade_estados):
 
 
 def fase2_copia(fita):
+    # tem que copiar antes do retrace: a fase 3 desfaz a fita 1 ate ela virar
+    # a entrada de novo, entao sem essa copia a saida se perderia junto
     print("\nFase 2: copia do resultado pra fita 3")
 
     fita_output = {}
@@ -119,14 +162,18 @@ def fase2_copia(fita):
 def fase3_retrace(fita, historico, estado):
     print("\nFase 3: retrace, desfazendo os passos da fase 1")
 
-    # Percorre o histórico na ordem inversa
+    # desfazer na ordem inversa garante que, se uma posicao foi escrita
+    # mais de uma vez, ela volta ao valor de ANTES do primeiro passo
+    # que a tocou (tipo uma pilha, ultimo a entrar, primeiro a sair)
     for registro in reversed(historico):
-        # Restaura estado e conteúdo da Fita 1
         estado = registro["estado_anterior"]
-        fita[registro["cabeca_anterior"]] = registro["simbolo_anterior"]
 
-        print(f"  Desfazendo passo {registro['passo']:>3}: Voltou para q{estado}, "
-              f"Restaurou '{registro['simbolo_anterior']}' em Fita 1[{registro['cabeca_anterior']}]")
+        if registro["tipo"] == "RW":
+            fita[registro["cabeca"]] = registro["simbolo_anterior"]
+            print(f"  Desfazendo passo {registro['passo']:>3}: Voltou para q{estado}, "
+                  f"Restaurou '{registro['simbolo_anterior']}' em Fita 1[{registro['cabeca']}]")
+        else:
+            print(f"  Desfazendo passo {registro['passo']:>3}: Voltou para q{estado} (deslocamento desfeito)")
 
     # Limpa o histórico após o Retrace
     historico.clear()
@@ -140,7 +187,9 @@ def main():
         print(erro, file=sys.stderr)
         return 1
 
-    resultado = fase1_simulacao(transicoes, entrada, quantidade_estados)
+    quadruplas = construir_quadruplas(transicoes, quantidade_estados)
+
+    resultado = fase1_simulacao(quadruplas, entrada, quantidade_estados)
     if resultado is None:
         return 1
     fita, historico, estado = resultado
