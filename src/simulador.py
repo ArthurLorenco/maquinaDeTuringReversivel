@@ -3,7 +3,6 @@
 
 import re
 import sys
-from typing import List, Dict, Tuple, Any
 
 
 BLANK = "B"
@@ -87,17 +86,14 @@ def main():
             print(f"Erro: limite de {STEP_LIMIT} passos excedido.", file=sys.stderr)
             return 1
 
-        origem, simbolo_lido, destino, escrito, movimento = escolhida
+        origem, _, destino, escrito, movimento = escolhida
 
         # Registro para histórico do Retrace
         registro = {
             "passo": passo + 1,
-            "transicao": indice_transicao,
             "estado_anterior": estado,
             "cabeca_anterior": cabeca,
             "simbolo_anterior": lido,
-            "simbolo_escrito": escrito,
-            "estado_novo": destino,
             "movimento": movimento,
         }
         historico.append(registro)
@@ -133,7 +129,7 @@ def main():
         fita_output[i] = simbolo
         print(f"  Copiando simbolo '{simbolo}' da Fita 1[{pos}] para Fita 3[{i}]")
 
-    print(f"\nFase 2 Concluida!")
+    print("\nFase 2 Concluida!")
     print(f"Conteudo Fita 3 (Output): {texto_da_fita(fita_output)}")
 
     # =========================================================================
@@ -143,18 +139,8 @@ def main():
     print("FASE 3 — Retrace (Desfazendo passos para restaurar estado inicial)")
     print("=" * 70)
 
-    pas_retrace = 0
     # Percorre o histórico na ordem inversa
     for registro in reversed(historico):
-        pas_retrace += 1
-        
-        # Inverte o movimento realizado
-        mov = registro["movimento"]
-        if mov == "L":
-            cabeca += 1
-        elif mov == "R":
-            cabeca -= 1
-
         # Restaura estado e conteúdo da Fita 1
         estado = registro["estado_anterior"]
         fita[registro["cabeca_anterior"]] = registro["simbolo_anterior"]
@@ -173,7 +159,7 @@ def main():
     print("=" * 70)
     print(f"Estado final: q{estado}")
     print(f"Fita 1 (Input Reconstruido): {texto_da_fita(fita)}")
-    print(f"Fita 2 (History Limpo):       {texto_da_fita({})}")
+    print("Fita 2 (History Limpo):       vazia")
     print(f"Fita 3 (Output Copiado):     {texto_da_fita(fita_output)}")
     print("=" * 70)
 
