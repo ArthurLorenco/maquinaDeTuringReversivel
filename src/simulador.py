@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-"""Simulador de Máquina de Turing Reversível de 3 Fitas (3 Estágios)."""
-
 import re
 import sys
 
@@ -61,11 +58,7 @@ def main():
     cabeca = 0
     passo = 0
 
-    print("=" * 70)
-    print("FASE 1 — Simulacao Forward da MT Original (Fita 1 e Histórico)")
-    print("=" * 70)
-    print(f"Entrada: {entrada or '(vazia)'}")
-    print("Passos:")
+    print(f"Fase 1: simulacao original (entrada: {entrada or '(vazia)'})")
 
     while estado != quantidade_estados:
         lido = simbolo_da_fita(fita, cabeca)
@@ -109,17 +102,10 @@ def main():
         print(f"  {registro['passo']:>3}: T{indice_transicao}: "
               f"q{origem}, '{lido}' -> '{escrito}', {movimento}, q{destino}")
 
-    print("\nFase 1 Concluída com Sucesso!")
-    print(f"Estado final: {estado}")
-    print(f"Conteudo Fita 1: {texto_da_fita(fita)}")
+    print(f"Fita 1: {texto_da_fita(fita)}")
     print(f"Passos no historico: {len(historico)}")
 
-    # =========================================================================
-    # FASE 2 — Cópia do Resultado para a Fita 3 (Output Tape)
-    # =========================================================================
-    print("\n" + "=" * 70)
-    print("FASE 2 — Copia da Saida (Fita 1 -> Fita 3)")
-    print("=" * 70)
+    print("\nFase 2: copia do resultado pra fita 3")
 
     fita_output = {}
     posicoes_fita1 = sorted(p for p, s in fita.items() if s != BLANK)
@@ -129,15 +115,9 @@ def main():
         fita_output[i] = simbolo
         print(f"  Copiando simbolo '{simbolo}' da Fita 1[{pos}] para Fita 3[{i}]")
 
-    print("\nFase 2 Concluida!")
-    print(f"Conteudo Fita 3 (Output): {texto_da_fita(fita_output)}")
+    print(f"Fita 3: {texto_da_fita(fita_output)}")
 
-    # =========================================================================
-    # FASE 3 — Retrace / Reversão das Operações
-    # =========================================================================
-    print("\n" + "=" * 70)
-    print("FASE 3 — Retrace (Desfazendo passos para restaurar estado inicial)")
-    print("=" * 70)
+    print("\nFase 3: retrace, desfazendo os passos da fase 1")
 
     # Percorre o histórico na ordem inversa
     for registro in reversed(historico):
@@ -151,17 +131,11 @@ def main():
     # Limpa o histórico após o Retrace
     historico.clear()
 
-    # =========================================================================
-    # RESULTADO FINAL APÓS OS 3 ESTÁGIOS
-    # =========================================================================
-    print("\n" + "=" * 70)
-    print("RESULTADO FINAL DA SIMULACAO REVERSIVEL")
-    print("=" * 70)
-    print(f"Estado final: q{estado}")
-    print(f"Fita 1 (Input Reconstruido): {texto_da_fita(fita)}")
-    print("Fita 2 (History Limpo):       vazia")
-    print(f"Fita 3 (Output Copiado):     {texto_da_fita(fita_output)}")
-    print("=" * 70)
+    print("\nResultado final:")
+    print(f"Estado: q{estado}")
+    print(f"Fita 1 (entrada reconstruida): {texto_da_fita(fita)}")
+    print("Fita 2 (historico): vazia")
+    print(f"Fita 3 (saida): {texto_da_fita(fita_output)}")
 
     return 0
 
