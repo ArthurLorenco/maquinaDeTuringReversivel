@@ -44,14 +44,7 @@ def texto_da_fita(fita):
     return "".join(fita[posicao] for posicao in usadas)
 
 
-def main():
-    try:
-        quantidade_estados, transicoes, entrada = ler_descricao()
-    except ValueError as erro:
-        print(erro, file=sys.stderr)
-        return 1
-
-    # Inicialização da Fita 1 (Input/Working)
+def fase1_simulacao(transicoes, entrada, quantidade_estados):
     fita = {posicao: simbolo for posicao, simbolo in enumerate(entrada)}
     historico = []
     estado = 1
@@ -74,10 +67,10 @@ def main():
 
         if escolhida is None:
             print(f"Erro: nao ha transicao para estado {estado} e simbolo '{lido}'.", file=sys.stderr)
-            return 1
+            return None
         if passo >= STEP_LIMIT:
             print(f"Erro: limite de {STEP_LIMIT} passos excedido.", file=sys.stderr)
-            return 1
+            return None
 
         origem, _, destino, escrito, movimento = escolhida
 
@@ -105,6 +98,10 @@ def main():
     print(f"Fita 1: {texto_da_fita(fita)}")
     print(f"Passos no historico: {len(historico)}")
 
+    return fita, historico, estado
+
+
+def fase2_copia(fita):
     print("\nFase 2: copia do resultado pra fita 3")
 
     fita_output = {}
@@ -116,7 +113,10 @@ def main():
         print(f"  Copiando simbolo '{simbolo}' da Fita 1[{pos}] para Fita 3[{i}]")
 
     print(f"Fita 3: {texto_da_fita(fita_output)}")
+    return fita_output
 
+
+def fase3_retrace(fita, historico, estado):
     print("\nFase 3: retrace, desfazendo os passos da fase 1")
 
     # Percorre o histórico na ordem inversa
@@ -130,6 +130,23 @@ def main():
 
     # Limpa o histórico após o Retrace
     historico.clear()
+    return estado
+
+
+def main():
+    try:
+        quantidade_estados, transicoes, entrada = ler_descricao()
+    except ValueError as erro:
+        print(erro, file=sys.stderr)
+        return 1
+
+    resultado = fase1_simulacao(transicoes, entrada, quantidade_estados)
+    if resultado is None:
+        return 1
+    fita, historico, estado = resultado
+
+    fita_output = fase2_copia(fita)
+    estado = fase3_retrace(fita, historico, estado)
 
     print("\nResultado final:")
     print(f"Estado: q{estado}")
